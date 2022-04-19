@@ -1,0 +1,16 @@
+// Network settings
+#define WIFI_SSID       "SSID"
+#define WIFI_PASSWORD   "PASSWORD"
+#define BOT_TOKEN       "XXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+#define UPDATE_INTERVAL 1000    // ms
+#define SECRET          "Secret"
+
+// Watering settings
+#define WATER_VOLUME    1000    // ml
+#define PUMP_INTERVAL   500     // ms
+#define PUMP_VOLUME     20      // ml
+#define THRESHOLD       40      // raw value
+
+// Pins
+#define PUMP_PIN        D5
+#define SENSOR_PIN      A0
