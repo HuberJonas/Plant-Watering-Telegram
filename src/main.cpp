@@ -3,26 +3,28 @@
 #include <WiFiClient.h>
 #include <UniversalTelegramBot.h>
 
-#include "user/user.h"
 #include "settings.h"
 #include "eeprom_handler.h"
 
 void checkMoisture();
 void waterPlant();
 void updateBot();
-void handleMessage(String chatID, String text);
+void handleMessage(String chatID, String text, String name);
+void notifyUsers();
 boolean verifyUser(String chatID);
-User getUser(String chatID);
+void addUser(String chatID);
+void deleteUser(String chatID);
 
 WiFiClient client;
 UniversalTelegramBot bot(BOT_TOKEN, client);
+boolean usersHaveBeenNotified = false;
 unsigned long lastMillisUpdateBot;
 unsigned long lastMillisCheckMoisture;
 
 int threshold = 0;
 int volume = 0;
 int registeredUsers = 0;
-User users[AMOUNT_USERS];
+String users[AMOUNT_USERS];
 
 
 /**
@@ -55,7 +57,7 @@ void setup() {
 
   registeredUsers = readRegisteredUsers();
   for(int i=0; i<registeredUsers; i++) {
-    users[i] = readUser();
+    users[i] = readChatID(i);
   }
 }
 
@@ -90,6 +92,14 @@ void checkMoisture() {
   // water if necessary
   if(reading < threshold) {
     waterPlant();
+
+    if(volume <= 50 && usersHaveBeenNotified == false) {
+      notifyUsers();
+      usersHaveBeenNotified = true;
+    }
+    else if (volume > 50) {
+      usersHaveBeenNotified = false;
+    }
   }
 }
 
@@ -112,62 +122,68 @@ void waterPlant() {
  * 
  */
 String waitingVerification = "";
-String waitingName = "";
 String waitingDeletion = "";
-
+String waitingThreshold = "";
 
 void updateBot() {
   int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
   if(numNewMessages > 0) {
-    handleMessage(bot.messages[0].chat_id, bot.messages[0].text);
+    handleMessage(bot.messages[0].chat_id, bot.messages[0].text, bot.messages[0].from_name);
   }
 }
 
 
-void handleMessage(String chatID, String text) {
+void handleMessage(String chatID, String text, String name) {
   bool verified = verifyUser(chatID);
 
   if(!verified) {
     if(waitingVerification == chatID) {
       if(text == SECRET) {
-        bot.sendMessage(chatID, "Plant you can call me. Wie darf ich dich nennen?");
-        // ADD use Telegram name
+        bot.sendMessage(chatID, "Plant you can call me. Willkommen " + name + ".");
         waitingVerification = "";
-        waitingName = chatID;
+        addUser(chatID);
       }
       else {
         bot.sendMessage(chatID, "Leider Falsch. Du kannst auch eine registrierte Person bitten /secret einzugeben.");
       }
     }
     else {
-      bot.sendMessage(chatID, "Willkommen, bitte gib den Schlüssel ein.");
-      waitingVerification = chatID;
+      if(registeredUsers >= AMOUNT_USERS) {
+        bot.sendMessage(chatID, "Um diese Pflanze kümmern sich schon zu viele Leute. Es ist leider kein Platz mehr frei.");
+      }
+      else {
+        bot.sendMessage(chatID, "Willkommen, bitte gib den Schlüssel ein.");
+        waitingVerification = chatID;
+      }
     }
   }
   else{
-    // get user
-    User user = getUser(chatID);
-
-    if(waitingName == chatID) {
-      User newUser(text, chatID);
-      
-      bot.sendMessage(chatID, "Willkommen NAME");
-      waitingName = "";
-    }
-    else if(waitingDeletion == chatID) {
+    if(waitingDeletion == chatID) {
       if(text == "Delete") {
-        //TODO delete user
-        bot.sendMessage(chatID, "Schade. Vielleicht sehen wir uns nochmal.\nTschüss"),
+        bot.sendMessage(chatID, "Schade. Vielleicht sehen wir uns nochmal.\nTschüss " + name);
         waitingDeletion = "";
+        deleteUser(chatID);
       }
       else{
         bot.sendMessage(chatID, "Vorgang abgebrochen.");
         waitingDeletion = "";
       }
     }
+    else if(waitingThreshold == chatID) {
+      int threshold = 0;
+      try {
+        int threshold = (int)text;
+        writeThershold(threshold);
+        bot.sendMessage(chatID, "Neuer Schwellwert gesetzt.");
+      }
+      catch(const std::exception& e) {
+        bot.sendMessage(chatID, "Bitte schicke eine Zahl.");
+      }
+    }
 
     else if(text == "/stats") {
-      bot.sendMessage(chatID, "Stats einfügen");
+      int fillPercentage = (int)(volume/WATER_VOLUME)*100;
+      bot.sendMessage(chatID, "Die Tankfüllung liegt bei " + fillPercentage + "%.");
     }
     else if(text == "/secret") {
       bot.sendMessage(chatID, "Hier kommt der Schlüssel. Teile ihn nicht mit jedem!");
@@ -182,29 +198,52 @@ void handleMessage(String chatID, String text) {
       waterPlant();
     }
     else if(text == "/sensorRaw") {
-      //TODO raw value
+      bot.sendMessage(chatID, "Der Messwert des Sensors liegt bei " + analogRead(SENSOR_PIN) + ".");
     }
     else if(text == "/setThreshold") {
       bot.sendMessage(chatID, "Bitte gib den neuen Schwellwert für die Bewässerung ein.");
+      waitingThreshold = chatID;
     }
   }
 }
 
+void notifyUsers() {
+  for(int i=0; i<registeredUsers; i++) {
+    bot.sendMessage(users[i], "Stille Wasser sind zwar tief, aber der Wasserstand im Tank wird langsam zu gering.");
+  }
+}
 
+
+
+/**
+ * 
+ * User management
+ * 
+ */
 boolean verifyUser(String chatID) {
   for(int i=0; i<registeredUsers; i++) {
-    if(users[i].getChatID() == chatID) {
+    if(users[i] == chatID) {
       return true;
     }
   }
   return false;
 }
 
-User getUser(String chatID) {
+void addUser(String chatID) {
+  if(registeredUsers >= AMOUNT_USERS) return;
+  writeChatID(registeredUsers, chatID);
+  users[registeredUsers] = chatID;
+}
+
+void deleteUser(String chatID) {
+  if(registeredUsers == 0) return;
+  String lastUser = users[registeredUsers-1];
+
+  // find user to delete
   for(int i=0; i<registeredUsers; i++) {
-    if(users[i].getChatID() == chatID) {
-      return users[i];
+    if(users[i] == chatID) {
+      users[i] = lastUser;
+      users[registeredUsers-1] = "";
     }
   }
-  return User user();
 }

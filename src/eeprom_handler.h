@@ -4,30 +4,35 @@
 
 /**
  * EEPROM structure
- * 0    wateringThreshold
- * 1    volume (first part 255^2)
- * 2    volume (second part 255^1)
- * 3    registered users
+ * 0    wateringThreshold (first part)
+ * 1    wateringThreshold (second part)
+ * 2    volume (first part 255^2)
+ * 3    volume (second part 255^1)
+ * 4    registered users
  * 
- * User 1
- * 10-14    Chat ID
- * 15-30    Name
+ * 10-14    ChatID User1
  * ...
  */
 
 int readThershold() {
-    return EEPROM.read(0);
+    int first = EEPROM.read(0);
+    int second = EEPROM.read(1);
+    int threshold = first*255 + second;
+    return threshold;
 }
 
 void writeThershold(int thershold) {
-    EEPROM.write(0, threshold);
+    int second = volume%255;
+    int first = (volume-second)/255;
+    EEPROM.write(0, first);
+    EEPROM.write(1, second);
     EEPROM.commit();
 }
 
 
 int readVolume() {
-    int first = EEPROM.read(1);
-    int second = EEPROM.read(2);
+    int first = EEPROM.read(2);
+    int second = EEPROM.read(3);
     int volume = first*255 + second;
     return volume;
 }
@@ -35,18 +40,18 @@ int readVolume() {
 void writeVolume(int volume) {
     int second = volume%255;
     int first = (volume-second)/255;
-    EEPROM.write(1, first);
-    EEPROM.write(2, second);
+    EEPROM.write(2, first);
+    EEPROM.write(3, second);
     EEPROM.commit();
 }
 
 
 int readRegisteredUsers() {
-    return EEPROM.read(3);
+    return EEPROM.read(4);
 }
 
 void writeRegisteredUsers(int amount) {
-    EEPROM.write(3, amount);
+    EEPROM.write(4, amount);
     EEPROM.commit();
 }
 
@@ -72,16 +77,10 @@ void writeString(int address, String content) {
 }
 
 
-// User readUser(int index) {
-//     int startAddress = 10+20*index;
-//     String chatID = readString(startAddress);
-//     String name = readString(startAddress+5);
-//     User user(name, chatID);
-//     return user;
-// }
+String readChatID(int index) {
+    return readString(index*5+10);
+}
 
-// void writeUser(int index, User user) {
-//     int startAddress = 10+20*index;
-//     writeString(startAddress, user.getChatID());
-//     writeString(startAddress+5, user.getName());
-// }
+void writeChatID(int index, String chatID) {
+    writeString(index*5+10, chatID);
+}
