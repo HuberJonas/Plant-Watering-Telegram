@@ -5,17 +5,24 @@
 
 #include "user/user.h"
 #include "settings.h"
+#include "eeprom_handler.h"
 
 void checkMoisture();
 void waterPlant();
 void updateBot();
 void handleMessage(String chatID, String text);
+boolean verifyUser(String chatID);
+User getUser(String chatID);
 
 WiFiClient client;
 UniversalTelegramBot bot(BOT_TOKEN, client);
 unsigned long lastMillisUpdateBot;
 unsigned long lastMillisCheckMoisture;
 
+int threshold = 0;
+int volume = 0;
+int registeredUsers = 0;
+User users[AMOUNT_USERS];
 
 
 /**
@@ -38,7 +45,18 @@ void setup() {
   }
   Serial.println(" Success");
 
+  // Pump and EEPROM
   pinMode(PUMP_PIN, OUTPUT);
+  digitalWrite(PUMP_PIN, HIGH);
+  EEPROM.begin(AMOUNT_USERS*20+11);
+
+  threshold = readThershold();
+  volume = readVolume();
+
+  registeredUsers = readRegisteredUsers();
+  for(int i=0; i<registeredUsers; i++) {
+    users[i] = readUser();
+  }
 }
 
 void loop() {
@@ -70,7 +88,7 @@ void checkMoisture() {
   reading = (int)reading/5;
   
   // water if necessary
-  if(reading < THRESHOLD) {
+  if(reading < threshold) {
     waterPlant();
   }
 }
@@ -79,10 +97,11 @@ void checkMoisture() {
 void waterPlant() {
   Serial.println();
   Serial.println("Watering the plant");
-  digitalWrite(PUMP_PIN, HIGH);
-  delay(PUMP_INTERVAL);
   digitalWrite(PUMP_PIN, LOW);
-  // TODO volume control
+  delay(PUMP_INTERVAL);
+  digitalWrite(PUMP_PIN, HIGH);
+  volume -= PUMP_VOLUME;
+  writeVolume(volume);
 }
 
 
@@ -106,14 +125,13 @@ void updateBot() {
 
 
 void handleMessage(String chatID, String text) {
-  //TODO real
-  User user();
-  bool verified = true;
+  bool verified = verifyUser(chatID);
 
   if(!verified) {
     if(waitingVerification == chatID) {
       if(text == SECRET) {
         bot.sendMessage(chatID, "Plant you can call me. Wie darf ich dich nennen?");
+        // ADD use Telegram name
         waitingVerification = "";
         waitingName = chatID;
       }
@@ -127,8 +145,12 @@ void handleMessage(String chatID, String text) {
     }
   }
   else{
+    // get user
+    User user = getUser(chatID);
+
     if(waitingName == chatID) {
-      //TODO save user
+      User newUser(text, chatID);
+      
       bot.sendMessage(chatID, "Willkommen NAME");
       waitingName = "";
     }
@@ -159,6 +181,30 @@ void handleMessage(String chatID, String text) {
       bot.sendMessage(chatID, "Wie du befiehlst. Ich gieße!");
       waterPlant();
     }
+    else if(text == "/sensorRaw") {
+      //TODO raw value
+    }
+    else if(text == "/setThreshold") {
+      bot.sendMessage(chatID, "Bitte gib den neuen Schwellwert für die Bewässerung ein.");
+    }
   }
+}
 
+
+boolean verifyUser(String chatID) {
+  for(int i=0; i<registeredUsers; i++) {
+    if(users[i].getChatID() == chatID) {
+      return true;
+    }
+  }
+  return false;
+}
+
+User getUser(String chatID) {
+  for(int i=0; i<registeredUsers; i++) {
+    if(users[i].getChatID() == chatID) {
+      return users[i];
+    }
+  }
+  return User user();
 }

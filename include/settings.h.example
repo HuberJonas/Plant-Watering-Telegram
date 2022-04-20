@@ -9,8 +9,11 @@
 #define WATER_VOLUME    1000    // ml
 #define PUMP_INTERVAL   500     // ms
 #define PUMP_VOLUME     20      // ml
-#define THRESHOLD       40      // raw value
 
 // Pins
 #define PUMP_PIN        D5
 #define SENSOR_PIN      A0
+
+
+// other settings
+#define AMOUNT_USERS    10
