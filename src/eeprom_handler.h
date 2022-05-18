@@ -1,29 +1,28 @@
 #include <Arduino.h>
 #include <EEPROM.h>
-#include "user/user.h"
 
 /**
  * EEPROM structure
- * 0    wateringThreshold (first part)
- * 1    wateringThreshold (second part)
- * 2    volume (first part 255^2)
- * 3    volume (second part 255^1)
- * 4    registered users
+ * 0    moistureThreshold (first part   value: 1)
+ * 1    moistureThreshold (second part  value: 255)
+ * 2    volume (first part      value: 1)
+ * 3    volume (second part     value: 255)
+ * 4    amount registered users
  * 
- * 10-14    ChatID User1
+ * 10-24    ChatID User1
  * ...
  */
 
-int readThershold() {
+int readMoistureThreshold() {
     int first = EEPROM.read(0);
     int second = EEPROM.read(1);
-    int threshold = first*255 + second;
+    int threshold = first + second*256;
     return threshold;
 }
 
-void writeThershold(int thershold) {
-    int second = volume%255;
-    int first = (volume-second)/255;
+void writeMoistureThreshold(int threshold) {
+    int first = threshold%256;
+    int second = int((threshold-first)/256);
     EEPROM.write(0, first);
     EEPROM.write(1, second);
     EEPROM.commit();
@@ -33,24 +32,24 @@ void writeThershold(int thershold) {
 int readVolume() {
     int first = EEPROM.read(2);
     int second = EEPROM.read(3);
-    int volume = first*255 + second;
+    int volume = first + second*256;
     return volume;
 }
 
 void writeVolume(int volume) {
-    int second = volume%255;
-    int first = (volume-second)/255;
+    int first = volume%256;
+    int second = (volume-first)/256;
     EEPROM.write(2, first);
     EEPROM.write(3, second);
     EEPROM.commit();
 }
 
 
-int readRegisteredUsers() {
+int readAmountRegisteredUsers() {
     return EEPROM.read(4);
 }
 
-void writeRegisteredUsers(int amount) {
+void writeAmountRegisteredUsers(int amount) {
     EEPROM.write(4, amount);
     EEPROM.commit();
 }
@@ -70,7 +69,7 @@ void writeString(int address, String content) {
     int len = content.length();
     if(len > 9) return;
     EEPROM.write(address, len);
-    for(int i=0, i<len; i++) {
+    for(int i=0; i<len; i++) {
         EEPROM.write(address+1+i, content[i]);
     }
     EEPROM.commit();
@@ -78,9 +77,17 @@ void writeString(int address, String content) {
 
 
 String readChatID(int index) {
-    return readString(index*5+10);
+    return readString(index*15+10);
 }
 
 void writeChatID(int index, String chatID) {
-    writeString(index*5+10, chatID);
+    writeString(index*15+10, chatID);
+}
+
+
+void resetEEPROM() {
+    for(int i=0; i<EEPROM.length(); i++) {
+        EEPROM.write(i, 0);
+    }
+    EEPROM.commit();
 }
