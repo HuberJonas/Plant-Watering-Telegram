@@ -112,11 +112,11 @@ void writeVolume(int value) {
 
 
 int readAmountRegisteredUsers() {
-    return EEPROM.read(4);
+    return EEPROM.read(7);
 }
 
 void writeAmountRegisteredUsers(int amount) {
-    EEPROM.write(4, amount);
+    EEPROM.write(7, amount);
     EEPROM.commit();
 }
 
