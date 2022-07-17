@@ -156,7 +156,10 @@ int readMoisture(int amountReadings) {
   else {
     usersHaveBeenNotifiedCalibration = false;
   }
-  return map(reading, min(readingAir, readingWater), max(readingAir, readingWater), 0, 100);
+  int moisture = map(reading, readingAir, readingWater, 0, 100);
+  if(moisture > 100) moisture = 100;
+  if(moisture < 0) moisture = 0;
+  return moisture;
 }
 
 int readSensorRaw(int amountReadings) {
@@ -244,11 +247,12 @@ void handleMessage(String chatID, String text, String name) {
       if(text == "RESET") {        
         bot.sendMessage(chatID, "War nett euch kennengelernt zu haben. Führe Factory Reset durch. Bitte trenne mich kurz vom Strom.");
         resetEEPROM();
+        waitingReset = "";
       }
       else {
         bot.sendMessage(chatID, "Vorgang abgebrochen");
+        waitingReset = "";
       }
-      waitingReset = "";
     }
     else if(waitingCalibration == chatID) {
       if(text == "CALIBRATE") {
