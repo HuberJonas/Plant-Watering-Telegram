@@ -128,7 +128,7 @@ void waterPlant() {
   usersHaveBeenNotifiedTankEmpty = false;
   Serial.println("Watering the plant");
   digitalWrite(PUMP_PIN, HIGH);
-  delay(PUMP_INTERVAL);
+  delay(PUMP_DURATION);
   digitalWrite(PUMP_PIN, LOW);
   tankFill -= PUMP_VOLUME;
   writeVolume(tankFill);
@@ -231,13 +231,14 @@ void handleMessage(String chatID, String text, String name) {
       // No valid conversion
       if(thresholdNew == 0) {
         bot.sendMessage(chatID, "Ich bin kein Magier und kann aus Text keine Zahl machen. Vorgang abgebrochen.");
+        waitingThreshold == "";
       }
       else {
         threshold = thresholdNew;
         writeMoistureThreshold(threshold);
         bot.sendMessage(chatID, "Neuer Schwellwert gesetzt.");
+        waitingThreshold == "";
       }
-      waitingThreshold == "";
     }
     else if(waitingReset == chatID) {
       if(text == "RESET") {        

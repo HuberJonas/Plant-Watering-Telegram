@@ -8,8 +8,8 @@
 // Watering settings
 #define TANK_VOLUME     1000    // ml
 #define PUMP_VOLUME     40      // ml
-#define PUMP_INTERVAL   500     // ms
-#define PUMP_WAIT       30      // m
+#define PUMP_DURATION   500     // ms
+#define PUMP_WAIT       30      // ms
 
 // Pins
 #define PUMP_PIN        D5
